@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nobita ❤️ Shizuka World</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        :root { --blue: #35a1eb; --pink: #f06292; --bg: #e3f2fd; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .header { background: var(--pink); color: white; padding: 10px; text-align: center; border-bottom: 3px solid white; display: flex; align-items: center; justify-content: center; gap: 10px; flex-shrink: 0; }
+        .header img { width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; object-fit: cover; }
+
+        #theater { background: #000; width: 100%; height: 210px; border-bottom: 4px solid var(--blue); position: relative; flex-shrink: 0; }
+        video { width: 100%; height: 100%; object-fit: contain; }
+        .zoom-btn { position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; border: 1px solid white; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; z-index: 10; }
+
+        .conn-box { background: white; padding: 10px; font-size: 11px; border-bottom: 1px solid #ddd; text-align: center; flex-shrink: 0; }
+        .btn-row { display: flex; gap: 5px; justify-content: center; margin-top: 5px; }
+        input.id-input { padding: 6px; border-radius: 10px; border: 1px solid #ccc; width: 130px; outline: none; }
+
+        .apps-bar { display: flex; gap: 8px; padding: 10px; overflow-x: auto; background: white; border-bottom: 1px solid #ddd; flex-shrink: 0; }
+        .app-link { min-width: 80px; padding: 8px; background: #f8f9fa; border-radius: 10px; text-decoration: none; color: #333; font-size: 11px; font-weight: bold; text-align: center; border: 1px solid #eee; }
+
+        #chat-section { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #fff5f7; }
+        .msg { padding: 10px 14px; border-radius: 18px; max-width: 75%; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: relative; }
+        .tag { font-size: 10px; font-weight: bold; display: block; margin-bottom: 2px; }
+        .me { align-self: flex-end; background: var(--blue); color: white; border-bottom-right-radius: 2px; }
+        .you { align-self: flex-start; background: white; color: #333; border-bottom-left-radius: 2px; border: 1px solid #eee; }
+
+        .footer { padding: 10px; background: white; border-top: 1px solid #eee; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        #msgInp { flex: 1; padding: 10px 15px; border-radius: 25px; border: 1px solid #ddd; outline: none; }
+        .send-btn { background: var(--pink); color: white; border: none; border-radius: 50%; width: 42px; height: 42px; cursor: pointer; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <img src="ms.img.jpg" onerror="this.src='https://i.pinimg.com/originals/94/f9/5d/94f95d51920803870624d6d6f51f4961.jpg'">
+        <b style="font-size: 15px;">Nobita ❤️ Shizuka World</b>
+    </div>
+
+    <div class="conn-box">
+        <b>ID: <span id="my-id" style="color:var(--pink)">Loading...</span></b>
+        <div class="btn-row">
+            <input type="text" id="peer-id-input" class="id-input" placeholder="Dost ki ID dalo...">
+            <button onclick="window.connectToFriend()" style="background:#28a745; color:white; border:none; border-radius:10px; padding:6px 12px; cursor:pointer;">Connect 🤝</button>
+            <button onclick="window.startLive()" style="background:var(--blue); color:white; border:none; border-radius:10px; padding:6px 12px; cursor:pointer;">GO LIVE 🎬</button>
+        </div>
+    </div>
+
+    <div id="theater">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <button class="zoom-btn" onclick="window.toggleFull()">Bada Karein 📺</button>
+    </div>
+
+    <div class="apps-bar">
+        <a href="https://www.youtube.com" target="_blank" class="app-link">📺 YouTube</a>
+        <a href="https://www.hotstar.com" target="_blank" class="app-link">🎬 Hotstar</a>
+        <a href="https://www.jiocinema.com" target="_blank" class="app-link">🎥 JioCinema</a>
+        <a href="https://www.primevideo.com" target="_blank" class="app-link">🍿 Prime</a>
+        <a href="https://www.mxplayer.in" target="_blank" class="app-link">📽️ MXPlayer</a>
+        <a href="https://www.ludoking.com" target="_blank" class="app-link">🎲 Ludo</a>
+    </div>
+
+    <div id="chat-section"></div>
+
+    <div class="footer">
+        <input type="text" id="msgInp" placeholder="Apna msg likho...">
+        <button class="send-btn" onclick="window.sendMsg()">➤</button>
+    </div>
+
+    <script>
+        const peer = new Peer();
+        let conn;
+
+        peer.on('open', (id) => { 
+            document.getElementById('my-id').innerText = id; 
+        });
+
+        peer.on('connection', (c) => {
+            conn = c;
+            setupChat();
+        });
+
+        peer.on('call', (call) => {
+            call.answer();
+            call.on('stream', (s) => {
+                document.getElementById('remoteVideo').srcObject = s;
+            });
+        });
+
+        function setupChat() {
+            conn.on('data', (data) => {
+                addMsg(data, 'you');
+            });
+        }
+
+        window.connectToFriend = function() {
+            const id = document.getElementById('peer-id-input').value;
+            if(!id) return alert("Dost ki ID dalo!");
+            
+            conn = peer.connect(id);
+            conn.on('open', () => {
+                setupChat();
+                alert("Connect ho gaya! ❤️ Ab aap chat kar sakte ho.");
+            });
+        }
+
+        window.startLive = async function() {
+            try {
+                const s = await navigator.mediaDevices.getDisplayMedia({video: true, audio: true});
+                document.getElementById('remoteVideo').srcObject = s;
+                const id = document.getElementById('peer-id-input').value;
+                if(id) peer.call(id, s);
+            } catch(e) { console.error("Live Error: " + e); }
+        }
+
+        window.sendMsg = function() {
+            const m = document.getElementById('msgInp').value;
+            if(m && conn) {
+                conn.send(m);
+                addMsg(m, 'me');
+                document.getElementById('msgInp').value = "";
+            } else if (!conn) {
+                alert("Pehle ID dalo aur 'Connect' button dabao!");
+            }
+        }
+
+        function addMsg(t, s) {
+            const b = document.getElementById('chat-section');
+            const l = s === 'me' ? 'Me 😺' : 'You 💖';
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'msg ' + s;
+            msgDiv.innerHTML = '<span class="tag">' + l + '</span>' + t;
+            b.appendChild(msgDiv);
+            b.scrollTop = b.scrollHeight;
+        }
+
+        window.toggleFull = function() {
+            const theater = document.getElementById('theater');
+            if (!document.fullscreenElement) {
+                theater.requestFullscreen().catch(e => {
+                    alert("Zoom Error: " + e.message);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+    </script>
+</body>
+</html>
